@@ -1,0 +1,28 @@
+{
+  "name": "somurie-backend",
+  "version": "0.1.0",
+  "description": "Bun-based Hono API server for Farcaster metrics",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run src/index.ts",
+    "seed": "bun run scripts/seed-test-data.ts",
+    "test": "bun test",
+    "lint": "bunx @biomejs/biome check ./src --error-on-warnings",
+    "format": "bunx @biomejs/biome check ./src --fix --unsafe --error-on-warnings"
+  },
+  "dependencies": {
+    "hono": "^4.1.0",
+    "@hono/zod-validator": "^0.7.2",
+    "mongoose": "^8.0.0",
+    "nanoid": "^3.3.7",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.1.0",
+    "@types/bun": "latest",
+    "bun-types": "latest"
+  }
+}
