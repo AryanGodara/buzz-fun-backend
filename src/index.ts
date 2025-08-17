@@ -2,9 +2,9 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
-import { connectToDatabase, disconnectFromDatabase } from './config/db.ts'
-import { env } from './config/env.ts'
-import { apiRouter } from './routes/index.ts'
+import { connectToDatabase, disconnectFromDatabase } from './config/db'
+import { env } from './config/env'
+import { apiRouter } from './routes/index'
 
 // Initialize MongoDB connection (optional for testing)
 connectToDatabase().catch((err: Error) => {
