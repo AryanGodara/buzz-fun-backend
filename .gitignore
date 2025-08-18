@@ -33,3 +33,4 @@ logs/
 
 # Test coverage reports
 coverage/
+.vercel

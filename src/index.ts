@@ -30,7 +30,7 @@ app.use(
 )
 
 // Health check endpoint
-app.get('/', (c) => {
+app.get('/', (c: any) => {
   return c.json({
     status: 'ok',
     message: 'Somurie API server is running',
