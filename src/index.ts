@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
-import { connectToDatabase, disconnectFromDatabase } from './config/db'
+import { connectToDatabase } from './config/db'
 import { env } from './config/env'
 import { apiRouter } from './routes/index'
 
@@ -42,29 +42,5 @@ app.get('/', (c) => {
 // Mount API routes
 app.route('/api', apiRouter)
 
-// Start the server
-const PORT = env.PORT || 4000
-console.log(`🚀 Server is running on port ${PORT}`)
-console.log(`💻 Environment: ${env.NODE_ENV}`)
-
-export default {
-  port: Number(PORT),
-  fetch: app.fetch,
-}
-
-// Handle graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM signal received, shutting down gracefully')
-  await disconnectFromDatabase().catch((err: Error) =>
-    console.error('Error during shutdown:', err),
-  )
-  process.exit(0)
-})
-
-process.on('SIGINT', async () => {
-  console.log('SIGINT signal received, shutting down gracefully')
-  await disconnectFromDatabase().catch((err: Error) =>
-    console.error('Error during shutdown:', err),
-  )
-  process.exit(0)
-})
+// Export the Hono app directly (Vercel-compatible)
+export default app
