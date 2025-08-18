@@ -9,10 +9,10 @@ const envSchema = z.object({
     .default('development'),
 
   // MongoDB
-  MONGODB_URI: z.string(),
+  MONGODB_URI: z.string().optional(),
 
   // Neynar
-  NEYNAR_API_KEY: z.string(),
+  NEYNAR_API_KEY: z.string().optional(),
 
   // CORS
   ALLOWED_ORIGINS: z

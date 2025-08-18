@@ -7,9 +7,13 @@ import { env } from './config/env'
 import { apiRouter } from './routes/index'
 
 // Initialize MongoDB connection (optional for testing)
-connectToDatabase().catch((err: Error) => {
-  console.warn('⚠️ MongoDB connection failed, running in test mode:', err.message)
-})
+if (env.MONGODB_URI) {
+  connectToDatabase().catch((err: Error) => {
+    console.warn('⚠️ MongoDB connection failed, running in test mode:', err.message)
+  })
+} else {
+  console.log('⚠️ No MONGODB_URI provided, running without database')
+}
 
 // Create Hono app
 const app = new Hono()
