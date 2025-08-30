@@ -31,6 +31,9 @@ const envSchema = z.object({
   // Firebase Admin SDK (service account key as JSON string)
   FIREBASE_SERVICE_ACCOUNT_KEY: z.string().optional(),
 
+  // Firebase Database Secret (for admin access)
+  FIREBASE_DATABASE_SECRET: z.string().optional(),
+
   // KV Store for JWT caching (required by @hono/firebase-auth)
   PUBLIC_JWK_CACHE_KEY: z.string().optional(),
 })
@@ -48,6 +51,7 @@ export type Bindings = {
   FIREBASE_APP_ID?: string
   FIREBASE_MEASUREMENT_ID?: string
   FIREBASE_SERVICE_ACCOUNT_KEY?: string
+  FIREBASE_DATABASE_SECRET?: string
   PUBLIC_JWK_CACHE_KEY?: string
   PUBLIC_JWK_CACHE_KV?: KVNamespace
 }
