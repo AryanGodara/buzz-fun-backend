@@ -1,7 +1,9 @@
 import type { ICreatorScore } from '../types'
 import { inMemoryStore } from '../utils/inMemoryStore'
-import { createNeynarService } from './neynar'
-import { scoreCalculator } from './score'
+import { createEnhancedNeynarService } from './neynar-enhanced'
+import { calculateAllMetrics } from './metrics'
+import { scoreNormalizer } from './normalization'
+import { createScoreResult } from './scoring'
 
 /**
  * Job status enum
@@ -106,7 +108,7 @@ export class JobProcessor {
   }
 
   /**
-   * Process score calculation for a creator
+   * Process score calculation for a creator using enhanced system
    * @param fid Farcaster ID
    */
   private async processScoreCalculation(fid: number): Promise<void> {
@@ -129,35 +131,41 @@ export class JobProcessor {
       throw new Error('NEYNAR_API_KEY not available in job processor')
     }
 
-    const neynarService = createNeynarService(this.apiKey)
+    const enhancedNeynarService = createEnhancedNeynarService(this.apiKey)
 
-    // Get creator metrics from Neynar
-    const metrics = await neynarService.getCreatorMetrics(fid)
-    if (!metrics) {
-      throw new Error(`Failed to fetch metrics for FID ${fid}`)
+    // Get comprehensive raw creator metrics from enhanced Neynar service
+    const rawMetrics = await enhancedNeynarService.fetchRawCreatorMetrics(fid)
+    if (!rawMetrics) {
+      throw new Error(`Failed to fetch raw metrics for FID ${fid}`)
     }
 
-    // Calculate score
-    const scoreResult = await scoreCalculator.calculateScore(metrics)
+    // Calculate metrics using enhanced algorithm
+    const calculatedMetrics = calculateAllMetrics(rawMetrics)
+    
+    // Normalize scores using percentile-based system
+    const normalizedComponents = scoreNormalizer.normalizeScores(calculatedMetrics)
+    
+    // Calculate overall score and create result
+    const scoreResult = createScoreResult(fid, normalizedComponents)
 
-    // Save creator info
+    // Save creator info with enhanced data
     await inMemoryStore.saveCreator({
-      fid: metrics.fid,
-      username: metrics.username,
-      followerCount: metrics.followerCount,
-      followingCount: metrics.followingCount,
-      powerBadge: metrics.powerBadge,
+      fid: rawMetrics.profile.fid,
+      username: '', // We don't have username in raw metrics, would need separate call
+      followerCount: rawMetrics.profile.followers,
+      followingCount: rawMetrics.profile.following,
+      powerBadge: rawMetrics.profile.powerBadge,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
 
-    // Save score
+    // Save score with proper tier type
     const creatorScore: ICreatorScore = {
       shareableId: this.generateShareableId(),
       creatorFid: scoreResult.fid,
       overallScore: scoreResult.overallScore,
       percentileRank: scoreResult.percentileRank,
-      tier: scoreResult.tier,
+      tier: scoreResult.tier, // Now properly typed as CreditTier
       components: scoreResult.components,
       scoreDate: today,
       validUntil: scoreResult.validUntil,
@@ -167,7 +175,7 @@ export class JobProcessor {
 
     await inMemoryStore.saveCreatorScore(creatorScore)
 
-    console.log(`Score calculated for FID ${fid}: ${scoreResult.overallScore}`)
+    console.log(`Enhanced score calculated for FID ${fid}: ${scoreResult.overallScore} (${scoreResult.tier})`)
   }
 
   /**

@@ -1,31 +1,5 @@
-/**
- * Interface for Cast metrics
- */
-export interface CastMetrics {
-  hash: string
-  timestamp: Date
-  likes: number
-  recasts: number
-  replies: number
-}
-
-/**
- * Interface for Creator metrics
- */
-export interface CreatorMetrics {
-  fid: number
-  username: string
-  followerCount: number
-  followingCount: number
-  powerBadge: boolean
-  neynarScore: number
-  casts: CastMetrics[]
-  engagementRate: number
-  postingFrequency: number
-  growthRate: number
-  viralCoefficient: number
-  networkScore: number
-}
+// Legacy interfaces - can be removed after cleanup
+// Keeping temporarily for any remaining references
 
 /**
  * Interface for score component values
@@ -47,7 +21,7 @@ export interface ICreatorScore {
   creatorFid: number
   overallScore: number
   percentileRank: number
-  tier: number
+  tier: CreditTier
   components: IScoreComponents
   scoreDate: Date
   validUntil: Date

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { createNeynarService } from '../services/neynar'
+import { createEnhancedNeynarService } from '../services/neynar-enhanced'
 import type { Bindings } from '../types'
 import { inMemoryStore } from '../utils/inMemoryStore'
 
@@ -25,7 +25,7 @@ router.get('/health', (c) => {
 
 /**
  * GET /api/test/neynar/:fid
- * Test Neynar API connection
+ * Test Enhanced Neynar API connection
  */
 router.get('/neynar/:fid', async (c) => {
   try {
@@ -43,12 +43,12 @@ router.get('/neynar/:fid', async (c) => {
       )
     }
 
-    const neynarService = createNeynarService(apiKey)
-    const metrics = await neynarService.getCreatorMetrics(fid)
+    const enhancedNeynarService = createEnhancedNeynarService(apiKey)
+    const rawMetrics = await enhancedNeynarService.fetchRawCreatorMetrics(fid)
 
-    if (!metrics) {
+    if (!rawMetrics) {
       return c.json(
-        { success: false, error: 'Failed to fetch creator metrics' },
+        { success: false, error: 'Failed to fetch raw creator metrics' },
         404,
       )
     }
@@ -56,20 +56,21 @@ router.get('/neynar/:fid', async (c) => {
     return c.json({
       success: true,
       data: {
-        fid: metrics.fid,
-        username: metrics.username,
-        followerCount: metrics.followerCount,
-        powerBadge: metrics.powerBadge,
-        neynarScore: metrics.neynarScore,
-        castsCount: metrics.casts.length,
-        engagementRate: metrics.engagementRate,
-        postingFrequency: metrics.postingFrequency,
-        cacheStats: neynarService.getCacheStats(),
+        fid: rawMetrics.profile.fid,
+        followers: rawMetrics.profile.followers,
+        following: rawMetrics.profile.following,
+        powerBadge: rawMetrics.profile.powerBadge,
+        userQualityScore: rawMetrics.profile.userQualityScore,
+        castsCount: rawMetrics.casts.length,
+        activeDays: rawMetrics.activity.activeDays,
+        networkMetrics: rawMetrics.networkMetrics,
+        financialMetrics: rawMetrics.financialMetrics,
+        channelsCount: rawMetrics.channels?.length || 0,
       },
     })
   } catch (error) {
-    console.error('Neynar test error:', error)
-    return c.json({ success: false, error: 'Neynar API test failed' }, 500)
+    console.error('Enhanced Neynar test error:', error)
+    return c.json({ success: false, error: 'Enhanced Neynar API test failed' }, 500)
   }
 })
 
@@ -86,7 +87,7 @@ router.post('/seed-data', async (c) => {
         creatorFid: 1,
         overallScore: 85,
         percentileRank: 90,
-        tier: 5,
+        tier: 'AA' as const,
         components: {
           engagement: 80,
           consistency: 85,
@@ -104,7 +105,7 @@ router.post('/seed-data', async (c) => {
         creatorFid: 2,
         overallScore: 72,
         percentileRank: 75,
-        tier: 4,
+        tier: 'A' as const,
         components: {
           engagement: 70,
           consistency: 75,
