@@ -133,58 +133,5 @@ router.get('/', async (c) => {
   }
 })
 
-/**
- * GET /api/leaderboard/tier/:tier
- * Get leaderboard for a specific tier
- */
-router.get('/tier/:tier', async (c) => {
-  try {
-    const tierParam = c.req.param('tier') as CreditTier
-    const limit = parseInt(c.req.query('limit') || '10', 10)
-    const maxLimit = Math.min(limit, 100)
-
-    const validTiers: CreditTier[] = [
-      'D',
-      'C',
-      'B',
-      'BB',
-      'BBB',
-      'A',
-      'AA',
-      'AAA',
-    ]
-
-    if (!validTiers.includes(tierParam)) {
-      return c.json(
-        {
-          success: false,
-          error: 'Invalid tier (must be one of: D, C, B, BB, BBB, A, AA, AAA)',
-        },
-        400,
-      )
-    }
-
-    // Filter mock data by tier
-    const tierLeaderboard = mockLeaderboard
-      .filter((creator) => creator.tier === tierParam)
-      .slice(0, maxLimit)
-
-    return c.json({
-      success: true,
-      data: {
-        tier: tierParam,
-        leaderboard: tierLeaderboard,
-        total: tierLeaderboard.length,
-        generatedAt: new Date().toISOString(),
-      },
-    })
-  } catch (error) {
-    console.error('Tier leaderboard fetch error:', error)
-    return c.json(
-      { success: false, error: 'Failed to fetch tier leaderboard' },
-      500,
-    )
-  }
-})
 
 export { router as leaderboardRoutes }
