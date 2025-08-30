@@ -111,10 +111,17 @@ export interface CastsResponse {
 
 // Additional types for enhanced API calls
 export interface RelevantFollowersResponse {
-  users: NeynarUser[]
-  next?: {
-    cursor: string | null
-  }
+  top_relevant_followers_hydrated: Array<{
+    object: 'follow'
+    user: NeynarUser
+  }>
+  all_relevant_followers_dehydrated: Array<{
+    object: 'follow'
+    user: {
+      object: 'user_dehydrated'
+      fid: number
+    }
+  }>
 }
 
 export interface BestFriendsResponse {
@@ -134,12 +141,25 @@ export interface UserInteractionsResponse {
 
 export interface UserBalanceResponse {
   balances: Array<{
-    chain: 'ethereum' | 'base' | 'optimism' | 'arbitrum'
-    token_address: string
-    symbol: string
-    balance: string
-    decimals: number
-    usd_value?: number
+    object: 'address_balance'
+    verified_address: {
+      address: string
+      network: 'ethereum' | 'base' | 'optimism' | 'arbitrum'
+    }
+    token_balances: Array<{
+      object: 'token_balance'
+      token: {
+        object: 'token'
+        contract_address?: string
+        name: string
+        symbol: string
+        decimals: number
+      }
+      balance: {
+        in_token: number
+        in_usdc: number
+      }
+    }>
   }>
 }
 

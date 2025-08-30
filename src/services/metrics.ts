@@ -15,13 +15,13 @@ export function calculateEngagementScore(
 
   // Calculate engagement rate per cast with enhanced weighting
   const engagementRates = casts.map((cast) => {
-    const totalEngagements = 
-      cast.likes + 
-      cast.recasts * 1.5 + 
-      cast.replies * 2 + 
+    const totalEngagements =
+      cast.likes +
+      cast.recasts * 1.5 +
+      cast.replies * 2 +
       (cast.mentionsCount || 0) * 0.5 + // Mentions indicate reach
       (cast.hasChannel ? 1.2 : 1) // Channel posts get slight boost
-    
+
     const engagementRate = (totalEngagements / followerCount) * 100
     return Math.min(engagementRate, 100) // Cap at 100%
   })
@@ -40,14 +40,19 @@ export function calculateEngagementScore(
     engagementRates.filter((rate) => rate > top10Threshold).length * 2
 
   // Network interaction bonus
-  const networkBonus = networkMetrics ? 
-    Math.min((networkMetrics.totalInteractions / 1000) * 5, 10) : 0
+  const networkBonus = networkMetrics
+    ? Math.min((networkMetrics.totalInteractions / 1000) * 5, 10)
+    : 0
 
   // Interaction diversity bonus
-  const diversityBonus = networkMetrics ? 
-    networkMetrics.interactionDiversity * 2 : 0
+  const diversityBonus = networkMetrics
+    ? networkMetrics.interactionDiversity * 2
+    : 0
 
-  return Math.min(weightedEngagement + viralBonus + networkBonus + diversityBonus, 100)
+  return Math.min(
+    weightedEngagement + viralBonus + networkBonus + diversityBonus,
+    100,
+  )
 }
 
 /**
@@ -91,21 +96,27 @@ export function calculateConsistencyScore(
   const regularityScore = Math.max(0, 100 - stdDev * 5)
 
   // Channel diversity bonus (consistent posting across channels)
-  const channelDiversityBonus = activity.channelDiversity ? 
-    Math.min(activity.channelDiversity * 3, 15) : 0
+  const channelDiversityBonus = activity.channelDiversity
+    ? Math.min(activity.channelDiversity * 3, 15)
+    : 0
 
   // Reply ratio consistency (balanced original vs reply content)
   const idealReplyRatio = 0.3 // 30% replies is considered healthy
-  const replyRatioScore = activity.replyRatio !== undefined ? 
-    Math.max(0, 100 - Math.abs((activity.replyRatio - idealReplyRatio) * 100)) : 50
+  const replyRatioScore =
+    activity.replyRatio !== undefined
+      ? Math.max(
+          0,
+          100 - Math.abs((activity.replyRatio - idealReplyRatio) * 100),
+        )
+      : 50
 
   // Weighted combination with enhanced factors
   return Math.min(
-    activityRate * 0.5 + 
-    regularityScore * 0.3 + 
-    channelDiversityBonus * 0.1 + 
-    replyRatioScore * 0.1, 
-    100
+    activityRate * 0.5 +
+      regularityScore * 0.3 +
+      channelDiversityBonus * 0.1 +
+      replyRatioScore * 0.1,
+    100,
   )
 }
 
@@ -157,37 +168,39 @@ export function calculateQualityScore(rawMetrics: RawCreatorMetrics): number {
   // Content depth and richness score
   const avgThreadDepth =
     casts.reduce((sum, cast) => sum + (cast.threadDepth || 0), 0) / casts.length
-  const avgMentions = 
-    casts.reduce((sum, cast) => sum + (cast.mentionsCount || 0), 0) / casts.length
-  const avgEmbeds = 
+  const avgMentions =
+    casts.reduce((sum, cast) => sum + (cast.mentionsCount || 0), 0) /
+    casts.length
+  const avgEmbeds =
     casts.reduce((sum, cast) => sum + (cast.embedsCount || 0), 0) / casts.length
-  
+
   const contentRichness = Math.min(
-    avgThreadDepth * 10 + avgMentions * 5 + avgEmbeds * 3, 
-    20
+    avgThreadDepth * 10 + avgMentions * 5 + avgEmbeds * 3,
+    20,
   )
 
   // Verification and credential score
   const verificationScore =
     (profile.powerBadge ? 12 : 0) +
-    Math.min(profile.verifications.length * 4, 12) +
-    Math.min((profile.verifiedAddresses?.eth_addresses.length || 0) * 2, 8)
+    Math.min((profile.verifications?.length || 0) * 4, 12) +
+    Math.min((profile.verifiedAddresses?.eth_addresses?.length || 0) * 2, 8)
 
   // Financial credibility (token holdings, verified addresses)
-  const financialCredibility = financialMetrics ? 
-    Math.min(
-      (financialMetrics.hasSignificantBalance ? 8 : 0) +
-      financialMetrics.chainDiversity * 2 +
-      (financialMetrics.tokenCount > 5 ? 4 : 0),
-      15
-    ) : 0
+  const financialCredibility = financialMetrics
+    ? Math.min(
+        (financialMetrics.hasSignificantBalance ? 8 : 0) +
+          financialMetrics.chainDiversity * 2 +
+          (financialMetrics.tokenCount > 5 ? 4 : 0),
+        15,
+      )
+    : 0
 
   // Creator economy participation
   const creatorEconomyScore = Math.min(
     (profile.subscriptionsCreated || 0) * 3 +
-    (profile.subscribers || 0) * 0.1 +
-    (channels?.filter(c => c.role === 'owner').length || 0) * 5,
-    15
+      (profile.subscribers || 0) * 0.1 +
+      (channels?.filter((c) => c.role === 'owner').length || 0) * 5,
+    15,
   )
 
   // Engagement quality (conversation starter vs broadcaster)
@@ -198,8 +211,12 @@ export function calculateQualityScore(rawMetrics: RawCreatorMetrics): number {
 
   // Weighted combination
   return Math.min(
-    neynarQuality + contentRichness + verificationScore + 
-    financialCredibility + creatorEconomyScore + conversationScore,
+    neynarQuality +
+      contentRichness +
+      verificationScore +
+      financialCredibility +
+      creatorEconomyScore +
+      conversationScore,
     100,
   )
 }
@@ -218,47 +235,64 @@ export function calculateNetworkScore(rawMetrics: RawCreatorMetrics): number {
   )
 
   // Relevant followers quality score
-  const relevantFollowerScore = networkMetrics ? 
-    Math.min(networkMetrics.relevantFollowerScore * 10, 25) : 0
+  const relevantFollowerScore = networkMetrics
+    ? Math.min(networkMetrics.relevantFollowerScore * 10, 25)
+    : 0
 
   // Best friends network strength
-  const bestFriendsScore = networkMetrics ? 
-    Math.min(
-      networkMetrics.bestFriendsCount * 2 + 
-      networkMetrics.avgAffinityScore * 10, 
-      20
-    ) : 0
+  const bestFriendsScore = networkMetrics
+    ? Math.min(
+        networkMetrics.bestFriendsCount * 2 +
+          networkMetrics.avgAffinityScore * 10,
+        20,
+      )
+    : 0
 
   // Follower-to-following ratio (selective following indicates influence)
-  const followRatio = networkMetrics?.followerToFollowingRatio || 
+  const followRatio =
+    networkMetrics?.followerToFollowingRatio ||
     (profile.following > 0 ? profile.followers / profile.following : 1)
-  const ratioScore = Math.min(Math.log10(Math.max(followRatio, 0.1)) * 10 + 10, 15)
+  const ratioScore = Math.min(
+    Math.log10(Math.max(followRatio, 0.1)) * 10 + 10,
+    15,
+  )
 
   // Financial backing score (token holdings indicate network value)
-  const financialScore = financialMetrics ? 
-    Math.min(
-      (financialMetrics.hasSignificantBalance ? 10 : 0) +
-      financialMetrics.chainDiversity * 2 +
-      Math.log10(Math.max(financialMetrics.totalUsdValue, 1)) * 2,
-      15
-    ) : 0
+  const financialScore = financialMetrics
+    ? Math.min(
+        (financialMetrics.hasSignificantBalance ? 10 : 0) +
+          financialMetrics.chainDiversity * 2 +
+          Math.log10(Math.max(financialMetrics.totalUsdValue, 1)) * 2,
+        15,
+      )
+    : 0
 
   // Channel leadership score
-  const channelScore = channels ? 
-    channels.reduce((score, channel) => {
-      const roleMultiplier = channel.role === 'owner' ? 3 : 
-                           channel.role === 'moderator' ? 2 : 1
-      return score + Math.min(Math.log10(channel.follower_count) * roleMultiplier, 5)
-    }, 0) : 0
+  const channelScore = channels
+    ? channels.reduce((score, channel) => {
+        const roleMultiplier =
+          channel.role === 'owner' ? 3 : channel.role === 'moderator' ? 2 : 1
+        return (
+          score +
+          Math.min(Math.log10(channel.follower_count) * roleMultiplier, 5)
+        )
+      }, 0)
+    : 0
 
   // Quality multipliers
-  const qualityMultiplier = 1 + 
-    (profile.powerBadge ? 0.15 : 0) + 
-    profile.verifications.length * 0.05 +
-    (profile.verifiedAddresses?.eth_addresses.length || 0) * 0.02
+  const qualityMultiplier =
+    1 +
+    (profile.powerBadge ? 0.15 : 0) +
+    (profile.verifications?.length || 0) * 0.05 +
+    (profile.verifiedAddresses?.eth_addresses?.length || 0) * 0.02
 
-  const baseScore = followerScore + relevantFollowerScore + bestFriendsScore + 
-                   ratioScore + financialScore + Math.min(channelScore, 10)
+  const baseScore =
+    followerScore +
+    relevantFollowerScore +
+    bestFriendsScore +
+    ratioScore +
+    financialScore +
+    Math.min(channelScore, 10)
 
   return Math.min(baseScore * qualityMultiplier, 100)
 }

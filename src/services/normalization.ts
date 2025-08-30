@@ -17,7 +17,7 @@ export class ScoreNormalizer {
     consistency: [],
     growth: [],
     quality: [],
-    network: []
+    network: [],
   }
 
   private static readonly MAX_CACHE_SIZE = 1000 // Keep last 1000 scores for percentile calculation
@@ -27,16 +27,16 @@ export class ScoreNormalizer {
    */
   private addToHistoricalCache(calculatedMetrics: CalculatedMetrics): void {
     const cache = ScoreNormalizer.historicalScores
-    
+
     // Add new scores
     cache.engagement.push(calculatedMetrics.engagement)
     cache.consistency.push(calculatedMetrics.consistency)
     cache.growth.push(calculatedMetrics.growth)
     cache.quality.push(calculatedMetrics.quality)
     cache.network.push(calculatedMetrics.network)
-    
+
     // Trim cache if too large
-    Object.keys(cache).forEach(key => {
+    Object.keys(cache).forEach((key) => {
       const scores = cache[key as keyof typeof cache]
       if (scores.length > ScoreNormalizer.MAX_CACHE_SIZE) {
         scores.splice(0, scores.length - ScoreNormalizer.MAX_CACHE_SIZE)
@@ -54,7 +54,7 @@ export class ScoreNormalizer {
     }
 
     const sortedScores = [...distribution].sort((a, b) => a - b)
-    const rank = sortedScores.filter(s => s <= score).length
+    const rank = sortedScores.filter((s) => s <= score).length
     return Math.round((rank / sortedScores.length) * 100)
   }
 
@@ -79,15 +79,27 @@ export class ScoreNormalizer {
   normalizeScores(calculatedMetrics: CalculatedMetrics): IScoreComponents {
     // Add to historical cache for future percentile calculations
     this.addToHistoricalCache(calculatedMetrics)
-    
+
     const cache = ScoreNormalizer.historicalScores
-    
+
     return {
-      engagement: this.calculatePercentile(calculatedMetrics.engagement, cache.engagement),
-      consistency: this.calculatePercentile(calculatedMetrics.consistency, cache.consistency),
+      engagement: this.calculatePercentile(
+        calculatedMetrics.engagement,
+        cache.engagement,
+      ),
+      consistency: this.calculatePercentile(
+        calculatedMetrics.consistency,
+        cache.consistency,
+      ),
       growth: this.calculatePercentile(calculatedMetrics.growth, cache.growth),
-      quality: this.calculatePercentile(calculatedMetrics.quality, cache.quality),
-      network: this.calculatePercentile(calculatedMetrics.network, cache.network),
+      quality: this.calculatePercentile(
+        calculatedMetrics.quality,
+        cache.quality,
+      ),
+      network: this.calculatePercentile(
+        calculatedMetrics.network,
+        cache.network,
+      ),
     }
   }
 
@@ -116,24 +128,26 @@ export class ScoreNormalizer {
   /**
    * Get cache statistics for debugging
    */
-  getCacheStats(): { [key: string]: { count: number, avg: number, min: number, max: number } } {
+  getCacheStats(): {
+    [key: string]: { count: number; avg: number; min: number; max: number }
+  } {
     const cache = ScoreNormalizer.historicalScores
     const stats: any = {}
-    
-    Object.keys(cache).forEach(key => {
+
+    Object.keys(cache).forEach((key) => {
       const scores = cache[key as keyof typeof cache]
       if (scores.length > 0) {
         stats[key] = {
           count: scores.length,
           avg: scores.reduce((a, b) => a + b, 0) / scores.length,
           min: Math.min(...scores),
-          max: Math.max(...scores)
+          max: Math.max(...scores),
         }
       } else {
         stats[key] = { count: 0, avg: 0, min: 0, max: 0 }
       }
     })
-    
+
     return stats
   }
 

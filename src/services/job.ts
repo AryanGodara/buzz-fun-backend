@@ -1,7 +1,7 @@
 import type { ICreatorScore } from '../types'
 import { inMemoryStore } from '../utils/inMemoryStore'
-import { createEnhancedNeynarService } from './neynar-enhanced'
 import { calculateAllMetrics } from './metrics'
+import { createEnhancedNeynarService } from './neynar-enhanced'
 import { scoreNormalizer } from './normalization'
 import { createScoreResult } from './scoring'
 
@@ -141,10 +141,11 @@ export class JobProcessor {
 
     // Calculate metrics using enhanced algorithm
     const calculatedMetrics = calculateAllMetrics(rawMetrics)
-    
+
     // Normalize scores using percentile-based system
-    const normalizedComponents = scoreNormalizer.normalizeScores(calculatedMetrics)
-    
+    const normalizedComponents =
+      scoreNormalizer.normalizeScores(calculatedMetrics)
+
     // Calculate overall score and create result
     const scoreResult = createScoreResult(fid, normalizedComponents)
 
@@ -175,7 +176,9 @@ export class JobProcessor {
 
     await inMemoryStore.saveCreatorScore(creatorScore)
 
-    console.log(`Enhanced score calculated for FID ${fid}: ${scoreResult.overallScore} (${scoreResult.tier})`)
+    console.log(
+      `Enhanced score calculated for FID ${fid}: ${scoreResult.overallScore} (${scoreResult.tier})`,
+    )
   }
 
   /**

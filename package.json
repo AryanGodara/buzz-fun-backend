@@ -10,8 +10,10 @@
     "build": "wrangler deploy --dry-run"
   },
   "dependencies": {
-    "hono": "^4.9.5",
+    "@hono/firebase-auth": "^1.4.2",
     "@hono/zod-validator": "^0.2.2",
+    "firebase-auth-cloudflare-workers": "^2.0.0",
+    "hono": "^4.9.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

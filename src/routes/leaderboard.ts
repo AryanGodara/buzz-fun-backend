@@ -133,5 +133,4 @@ router.get('/', async (c) => {
   }
 })
 
-
 export { router as leaderboardRoutes }

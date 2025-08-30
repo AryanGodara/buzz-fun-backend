@@ -4,8 +4,24 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-08-30",
   "vars": {
-    "ALLOWED_ORIGINS": "http://14.143.254.122/,https://buzzbase.fun/"
-  }
+    "ALLOWED_ORIGINS": "http://14.143.254.122/,https://buzzbase.fun/",
+    "FIREBASE_API_KEY": "AIzaSyBX2ksCgL3yQdkqgIgwvZ8Qk8b6axL3zo8",
+    "FIREBASE_AUTH_DOMAIN": "buzz-fun.firebaseapp.com",
+    "FIREBASE_DATABASE_URL": "https://buzz-fun-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "FIREBASE_PROJECT_ID": "buzz-fun",
+    "FIREBASE_STORAGE_BUCKET": "buzz-fun.firebasestorage.app",
+    "FIREBASE_MESSAGING_SENDER_ID": "711253372348",
+    "FIREBASE_APP_ID": "1:711253372348:web:cdfd13394ca09a9928cfb9",
+    "FIREBASE_MEASUREMENT_ID": "G-9CXWKV181K",
+    "PUBLIC_JWK_CACHE_KEY": "firebase_jwk_cache"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "PUBLIC_JWK_CACHE_KV",
+      "id": "preview_id",
+      "preview_id": "preview_id"
+    }
+  ]
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
