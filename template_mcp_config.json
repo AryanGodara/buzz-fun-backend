@@ -1,0 +1,29 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "env": {
+        "MEMORY_FILE_PATH": ""
+      }
+    },
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "env": {}
+    },
+    "neynar-docs": {
+      "command": "node",
+      "args": [
+        "/Users/aryan/base-fellowship/buzz-fun-backend/neynar-mcp-server/neynar-docs-server.js"
+      ],
+      "env": {}
+    }
+  }
+}

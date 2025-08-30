@@ -1,0 +1,16 @@
+{
+  "name": "neynar-docs-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for serving Neynar API documentation to IDEs",
+  "type": "module",
+  "main": "neynar-docs-server.js",
+  "scripts": {
+    "start": "node neynar-docs-server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
