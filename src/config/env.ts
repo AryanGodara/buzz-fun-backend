@@ -53,7 +53,6 @@ export type Bindings = {
   FIREBASE_SERVICE_ACCOUNT_KEY?: string
   FIREBASE_DATABASE_SECRET?: string
   PUBLIC_JWK_CACHE_KEY?: string
-  PUBLIC_JWK_CACHE_KV?: KVNamespace
 }
 
 /**

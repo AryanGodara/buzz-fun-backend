@@ -15,13 +15,6 @@
     "FIREBASE_MEASUREMENT_ID": "G-9CXWKV181K",
     "PUBLIC_JWK_CACHE_KEY": "firebase_jwk_cache"
   },
-  "kv_namespaces": [
-    {
-      "binding": "PUBLIC_JWK_CACHE_KV",
-      "id": "preview_id",
-      "preview_id": "preview_id"
-    }
-  ]
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
