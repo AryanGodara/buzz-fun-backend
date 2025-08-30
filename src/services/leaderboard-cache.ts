@@ -85,10 +85,10 @@ export async function generateAndCacheLeaderboard(
         score.overallScore !== null,
     )
 
-  // Sort by overall score (descending) and take top 20
+  // Sort by overall score (descending) and take top 50
   const topScores = scoresArray
     .sort((a, b) => b.overallScore - a.overallScore)
-    .slice(0, 20)
+    .slice(0, 50)
 
   // Add ranks
   const leaderboard: LeaderboardEntry[] = topScores.map((score, index) => ({
