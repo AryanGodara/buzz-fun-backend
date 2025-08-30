@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { getNeynarApiKey } from '../config/env'
 // Firebase Admin temporarily disabled - import { getFirebaseAdminApp } from '../services/firebase-admin'
 import { calculateAllMetrics } from '../services/metrics'
 import { EnhancedNeynarService } from '../services/neynar-enhanced'
@@ -21,11 +22,6 @@ router.get('/creator/:fid', async (c) => {
       return c.json({ error: 'Invalid FID provided' }, 400)
     }
 
-    const apiKey = c.env.NEYNAR_API_KEY
-    if (!apiKey) {
-      return c.json({ error: 'NEYNAR_API_KEY not configured' }, 500)
-    }
-
     // Check Firebase for existing score (if Firebase Admin is configured)
     if (c.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       try {
@@ -34,18 +30,11 @@ router.get('/creator/:fid', async (c) => {
         const existingScore = null
 
         if (existingScore) {
-          // Temporarily disabled - would check timestamp here
-          const scoreAge = 0
-          const twentyFourHours = 24 * 60 * 60 * 1000
-
-          // Return cached score if less than 24 hours old
-          if (scoreAge < twentyFourHours) {
-            return c.json({
-              success: true,
-              data: existingScore,
-              cached: true,
-            })
-          }
+          return c.json({
+            success: true,
+            data: existingScore,
+            cached: true,
+          })
         }
       } catch (dbError) {
         console.warn(
@@ -56,15 +45,28 @@ router.get('/creator/:fid', async (c) => {
     }
 
     // Create Neynar service and fetch raw data
-    const neynarService = new EnhancedNeynarService(c.env.NEYNAR_API_KEY)
+    const apiKey = getNeynarApiKey(c.env)
+    const neynarService = new EnhancedNeynarService(apiKey)
     const rawMetrics = await neynarService.fetchRawCreatorMetrics(fid)
 
     if (!rawMetrics) {
       return c.json({ error: 'Creator not found or API error' }, 404)
     }
 
+    // Debug: Log raw metrics to see what we're getting from Neynar
+    console.log('Raw metrics from Neynar:', JSON.stringify({
+      profile: rawMetrics.profile,
+      castsCount: rawMetrics.casts.length,
+      sampleCast: rawMetrics.casts[0],
+      financial: rawMetrics.financial,
+      network: rawMetrics.network
+    }, null, 2))
+
     // Calculate metrics using new algorithm
     const calculatedMetrics = calculateAllMetrics(rawMetrics)
+    
+    // Debug: Log calculated metrics
+    console.log('Calculated metrics:', calculatedMetrics)
 
     // Normalize scores
     const normalizedComponents =
@@ -92,9 +94,23 @@ router.get('/creator/:fid', async (c) => {
     // Store in Firebase (if configured)
     if (c.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
       try {
-        // Firebase Admin temporarily disabled for Cloudflare Workers compatibility
-        // TODO: Implement Firebase REST API alternative
-        console.log('Mock: Would save score to Firebase')
+        // Use Firebase REST API for Cloudflare Workers compatibility
+        const firebaseProjectId = c.env.FIREBASE_PROJECT_ID || 'buzz-fun'
+        const firebaseUrl = `https://${firebaseProjectId}-default-rtdb.firebaseio.com/scores/${fid}.json`
+        
+        const firebaseResponse = await fetch(firebaseUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(scoreData),
+        })
+        
+        if (firebaseResponse.ok) {
+          console.log('Score saved to Firebase successfully')
+        } else {
+          console.warn('Failed to save to Firebase:', firebaseResponse.status)
+        }
       } catch (dbError) {
         console.warn(
           'Firebase write error, returning calculated score anyway:',

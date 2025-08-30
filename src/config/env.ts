@@ -68,6 +68,19 @@ export function validateEnv(bindings: Bindings) {
   return _env.data
 }
 
+/**
+ * Get Neynar API key from bindings with validation
+ * @param bindings Cloudflare Workers bindings object
+ * @returns Neynar API key or throws error
+ */
+export function getNeynarApiKey(bindings: Bindings): string {
+  const apiKey = bindings.NEYNAR_API_KEY
+  if (!apiKey) {
+    throw new Error('NEYNAR_API_KEY not configured')
+  }
+  return apiKey
+}
+
 // For local development fallback (when process.env is available)
 export const env = (() => {
   try {
