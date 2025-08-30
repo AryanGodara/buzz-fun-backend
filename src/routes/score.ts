@@ -27,15 +27,14 @@ router.get('/creator/:fid', async (c) => {
       try {
         const existingScore = await getFromFirebase(c.env, `scores/${fid}`)
 
+        // Check if existing score is still valid (1 week)
         if (existingScore && new Date(existingScore.validUntil) > new Date()) {
-          console.log(`🔄 Returning cached score from Firebase for FID ${fid}`)
+          console.log(`Cache hit for FID ${fid}`)
           return c.json({ success: true, data: existingScore })
         } else if (existingScore) {
-          console.log(`⏰ Cached score expired for FID ${fid}, recalculating`)
+          console.log(`Cached score expired for FID ${fid}, recalculating`)
         } else {
-          console.log(
-            `🆕 No cached score found for FID ${fid}, calculating fresh`,
-          )
+          console.log(`No cached score found for FID ${fid}, calculating fresh`)
         }
       } catch (dbError) {
         console.warn('Firebase read error, calculating fresh score:', dbError)
@@ -83,8 +82,10 @@ router.get('/creator/:fid', async (c) => {
     const tier = scoreNormalizer.getCreditTier(overallScore)
     const tierInfo = getTierInfo(tier)
 
-    const now = new Date()
-    const validUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000) // Valid for 24 hours
+    // Cache for 1 week
+    const validUntil = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000,
+    ).toISOString()
 
     const scoreData = {
       fid,
@@ -93,7 +94,7 @@ router.get('/creator/:fid', async (c) => {
       tierInfo,
       percentileRank,
       components: normalizedComponents,
-      timestamp: now,
+      timestamp: new Date().toISOString(),
       validUntil,
     }
 
