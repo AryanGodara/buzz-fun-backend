@@ -3,6 +3,10 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { jobProcessor } from '../services/job'
 import { loanCalculator } from '../services/loan'
+import { calculateAllMetrics } from '../services/metrics'
+import { createEnhancedNeynarService } from '../services/neynar-enhanced'
+import { scoreNormalizer } from '../services/normalization'
+import { CREDIT_TIERS, getTierInfo } from '../services/scoring'
 import type { Bindings, ICreatorScore } from '../types'
 import { inMemoryStore } from '../utils/inMemoryStore'
 
@@ -188,6 +192,87 @@ router.get('/share/:id', async (c) => {
       500,
     )
   }
+})
+
+/**
+ * GET /api/score/creator/:fid
+ * Get creator score with tier information (new scoring system)
+ */
+router.get('/creator/:fid', async (c) => {
+  try {
+    const fid = parseInt(c.req.param('fid'), 10)
+
+    if (!fid || Number.isNaN(fid)) {
+      return c.json({ error: 'Invalid FID provided' }, 400)
+    }
+
+    const apiKey = c.env.NEYNAR_API_KEY
+    if (!apiKey) {
+      return c.json({ error: 'NEYNAR_API_KEY not configured' }, 500)
+    }
+
+    // Create Neynar service and fetch raw data
+    const neynarService = createEnhancedNeynarService(apiKey)
+    const rawMetrics = await neynarService.fetchRawCreatorMetrics(fid)
+
+    if (!rawMetrics) {
+      return c.json({ error: 'Creator not found or API error' }, 404)
+    }
+
+    // Calculate metrics using new algorithm
+    const calculatedMetrics = calculateAllMetrics(rawMetrics)
+
+    // Normalize scores
+    const normalizedComponents =
+      scoreNormalizer.normalizeScores(calculatedMetrics)
+    const overallScore =
+      scoreNormalizer.calculateOverallScore(normalizedComponents)
+    const percentileRank = scoreNormalizer.calculatePercentileRank(overallScore)
+    const tier = scoreNormalizer.getCreditTier(overallScore)
+    const tierInfo = getTierInfo(tier)
+
+    const now = new Date()
+    const validUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000) // Valid for 24 hours
+
+    return c.json({
+      success: true,
+      data: {
+        fid,
+        overallScore,
+        tier,
+        tierInfo,
+        percentileRank,
+        components: normalizedComponents,
+        timestamp: now,
+        validUntil,
+        debug: {
+          calculatedMetrics, // Include raw calculated metrics for debugging
+          rawDataPoints: {
+            followers: rawMetrics.profile.followers,
+            casts: rawMetrics.casts.length,
+            activeDays: rawMetrics.activity.activeDays,
+          },
+        },
+      },
+    })
+  } catch (error) {
+    console.error('Error calculating creator score:', error)
+    return c.json({ error: 'Failed to calculate creator score' }, 500)
+  }
+})
+
+/**
+ * GET /api/score/tiers
+ * Get all available credit tiers
+ */
+router.get('/tiers', async (c) => {
+  return c.json({
+    success: true,
+    data: {
+      tiers: CREDIT_TIERS,
+      totalTiers: CREDIT_TIERS.length,
+    },
+  })
 })
 
 export { router as scoreRoutes }
