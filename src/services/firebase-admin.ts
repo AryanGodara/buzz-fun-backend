@@ -32,12 +32,12 @@ export function isAuthenticated(c: Context): boolean {
  */
 export async function getFromFirebase(
   bindings: Bindings,
-  path: string
+  path: string,
 ): Promise<any | null> {
   try {
     const databaseUrl = bindings.FIREBASE_DATABASE_URL
     const databaseSecret = bindings.FIREBASE_DATABASE_SECRET
-    
+
     if (!databaseUrl) {
       return null
     }
@@ -46,7 +46,7 @@ export async function getFromFirebase(
     if (databaseSecret) {
       firebaseUrl += `?auth=${databaseSecret}`
     }
-    
+
     const response = await fetch(firebaseUrl, {
       method: 'GET',
       headers: {

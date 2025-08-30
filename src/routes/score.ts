@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import type { Bindings } from '../config/env'
 import { getNeynarApiKey } from '../config/env'
-import { saveToFirebase, getFromFirebase } from '../services/firebase-admin'
+import { getFromFirebase, saveToFirebase } from '../services/firebase-admin'
 import { calculateAllMetrics } from '../services/metrics'
 import { EnhancedNeynarService } from '../services/neynar-enhanced'
 import { ScoreNormalizer } from '../services/score-normalizer'
@@ -33,7 +33,9 @@ router.get('/creator/:fid', async (c) => {
         } else if (existingScore) {
           console.log(`⏰ Cached score expired for FID ${fid}, recalculating`)
         } else {
-          console.log(`🆕 No cached score found for FID ${fid}, calculating fresh`)
+          console.log(
+            `🆕 No cached score found for FID ${fid}, calculating fresh`,
+          )
         }
       } catch (dbError) {
         console.warn('Firebase read error, calculating fresh score:', dbError)
