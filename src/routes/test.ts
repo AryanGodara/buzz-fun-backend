@@ -1,158 +1,188 @@
 import { Hono } from 'hono'
-import { env } from '../config/env'
-import { jobProcessor } from '../services/job'
-import { neynarService } from '../services/neynar'
-import { scoreCalculator } from '../services/score'
+import { createNeynarService } from '../services/neynar'
+import type { Bindings } from '../types'
+import { inMemoryStore } from '../utils/inMemoryStore'
 
-const router = new Hono()
+// Create router with bindings
+const router = new Hono<{ Bindings: Bindings }>()
 
-// Test endpoint to manually trigger score calculation
-router.post('/calculate-score/:fid', async (c) => {
-  const fid = parseInt(c.req.param('fid'), 10)
+/**
+ * GET /api/test/health
+ * Basic health check with system info
+ */
+router.get('/health', (c) => {
+  const storeStats = inMemoryStore.getStats()
 
-  try {
-    // Directly call the services for testing
-    console.log(`📊 Testing score calculation for FID: ${fid}`)
-
-    // Step 1: Fetch metrics
-    const metrics = await neynarService.getUserMetrics(fid, 30)
-    console.log('✅ Metrics fetched:', metrics)
-
-    // Step 2: Calculate score
-    const score = await scoreCalculator.calculateScore(metrics)
-    console.log('✅ Score calculated:', score)
-
-    return c.json({
-      success: true,
-      metrics,
-      score,
-    })
-  } catch (error) {
-    console.error('Test failed:', error)
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      500,
-    )
-  }
+  return c.json({
+    success: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    environment: 'cloudflare-workers',
+    store: storeStats,
+    hasNeynarKey: !!c.env.NEYNAR_API_KEY,
+  })
 })
 
-// Test Neynar API connection
-router.get('/test-neynar/:fid', async (c) => {
-  const fid = parseInt(c.req.param('fid'), 10)
-
+/**
+ * GET /api/test/neynar/:fid
+ * Test Neynar API connection
+ */
+router.get('/neynar/:fid', async (c) => {
   try {
-    // Using our refactored service
-    const userMetrics = await neynarService.getUserMetrics(fid, 30)
+    const fid = parseInt(c.req.param('fid'), 10)
+    const apiKey = c.env.NEYNAR_API_KEY
 
-    // Return the metrics directly
-    return c.json({
-      success: true,
-      userInfo: {
-        username: userMetrics.username,
-        followerCount: userMetrics.followerCount,
-        followingCount: userMetrics.followingCount,
-      },
-      casts: userMetrics.casts,
-      metrics: {
-        engagementRate: userMetrics.engagementRate,
-        postingFrequency: userMetrics.postingFrequency,
-        growthRate: userMetrics.growthRate,
-        viralCoefficient: userMetrics.viralCoefficient,
-        networkScore: userMetrics.networkScore,
-      },
-    })
-  } catch (error) {
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      500,
-    )
-  }
-})
+    if (Number.isNaN(fid)) {
+      return c.json({ success: false, error: 'Invalid FID' }, 400)
+    }
 
-// List all jobs in queue
-router.get('/jobs', async (c) => {
-  try {
-    // Get jobs using the public method
-    const jobs = jobProcessor.getJobs()
-
-    return c.json({
-      success: true,
-      jobs,
-      count: jobs.length,
-    })
-  } catch (error) {
-    return c.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      500,
-    )
-  }
-})
-
-// API Key diagnostic endpoint
-router.get('/diagnose-neynar', async (c) => {
-  try {
-    // Get the API key currently in use
-    const apiKey = env.NEYNAR_API_KEY
-    const maskedKey = apiKey
-      ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 4)}`
-      : 'Not set'
-
-    // Check for API key format - Neynar keys typically start with NEYNAR_
-    const hasValidFormat = apiKey?.startsWith('NEYNAR_')
-
-    // Attempt to test the API directly
-    let apiConnectionTest = 'Not tested'
-    let lowLevelError = null
-
-    try {
-      // Make a direct API call
-      const response = await fetch(
-        'https://api.neynar.com/v2/farcaster/user/1/followers?limit=1',
-        {
-          method: 'GET',
-          headers: {
-            'x-api-key': apiKey,
-            Accept: 'application/json',
-          },
-        },
+    if (!apiKey) {
+      return c.json(
+        { success: false, error: 'NEYNAR_API_KEY not configured' },
+        500,
       )
+    }
 
-      if (response.ok) {
-        apiConnectionTest = 'Success'
-      } else {
-        apiConnectionTest = 'Failed'
-        lowLevelError = `HTTP ${response.status}: ${await response.text()}`
-      }
-    } catch (err) {
-      apiConnectionTest = 'Failed'
-      lowLevelError = err instanceof Error ? err.message : String(err)
+    const neynarService = createNeynarService(apiKey)
+    const metrics = await neynarService.getCreatorMetrics(fid)
+
+    if (!metrics) {
+      return c.json(
+        { success: false, error: 'Failed to fetch creator metrics' },
+        404,
+      )
     }
 
     return c.json({
-      apiKeyPresent: Boolean(apiKey),
-      maskedKey,
-      hasValidFormat,
-      apiConnectionTest,
-      lowLevelError,
-      implementationType: 'Direct API (No SDK)',
+      success: true,
+      data: {
+        fid: metrics.fid,
+        username: metrics.username,
+        followerCount: metrics.followerCount,
+        powerBadge: metrics.powerBadge,
+        neynarScore: metrics.neynarScore,
+        castsCount: metrics.casts.length,
+        engagementRate: metrics.engagementRate,
+        postingFrequency: metrics.postingFrequency,
+        cacheStats: neynarService.getCacheStats(),
+      },
     })
   } catch (error) {
-    return c.json(
+    console.error('Neynar test error:', error)
+    return c.json({ success: false, error: 'Neynar API test failed' }, 500)
+  }
+})
+
+/**
+ * POST /api/test/seed-data
+ * Seed some test data for development
+ */
+router.post('/seed-data', async (c) => {
+  try {
+    // Create some mock creator scores for testing
+    const mockScores = [
       {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        shareableId: 'test_score_1',
+        creatorFid: 1,
+        overallScore: 85,
+        percentileRank: 90,
+        tier: 5,
+        components: {
+          engagement: 80,
+          consistency: 85,
+          growth: 90,
+          quality: 85,
+          network: 75,
+        },
+        scoreDate: new Date(),
+        validUntil: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
-      500,
-    )
+      {
+        shareableId: 'test_score_2',
+        creatorFid: 2,
+        overallScore: 72,
+        percentileRank: 75,
+        tier: 4,
+        components: {
+          engagement: 70,
+          consistency: 75,
+          growth: 70,
+          quality: 80,
+          network: 65,
+        },
+        scoreDate: new Date(),
+        validUntil: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+
+    // Create mock creators
+    const mockCreators = [
+      {
+        fid: 1,
+        username: 'testuser1',
+        displayName: 'Test User 1',
+        followerCount: 5000,
+        followingCount: 500,
+        powerBadge: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        fid: 2,
+        username: 'testuser2',
+        displayName: 'Test User 2',
+        followerCount: 2500,
+        followingCount: 300,
+        powerBadge: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ]
+
+    // Save to store
+    for (const creator of mockCreators) {
+      await inMemoryStore.saveCreator(creator)
+    }
+
+    for (const score of mockScores) {
+      await inMemoryStore.saveCreatorScore(score)
+    }
+
+    return c.json({
+      success: true,
+      message: 'Test data seeded successfully',
+      data: {
+        creatorsAdded: mockCreators.length,
+        scoresAdded: mockScores.length,
+        storeStats: inMemoryStore.getStats(),
+      },
+    })
+  } catch (error) {
+    console.error('Seed data error:', error)
+    return c.json({ success: false, error: 'Failed to seed test data' }, 500)
+  }
+})
+
+/**
+ * DELETE /api/test/clear-data
+ * Clear all test data
+ */
+router.delete('/clear-data', (c) => {
+  try {
+    inMemoryStore.clear()
+
+    return c.json({
+      success: true,
+      message: 'All data cleared successfully',
+      storeStats: inMemoryStore.getStats(),
+    })
+  } catch (error) {
+    console.error('Clear data error:', error)
+    return c.json({ success: false, error: 'Failed to clear data' }, 500)
   }
 })
 

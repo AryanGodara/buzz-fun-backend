@@ -1,167 +1,131 @@
 import { Hono } from 'hono'
-import { z } from 'zod'
-import { Creator } from '../models/creator'
-import { CreatorScore } from '../models/creatorScore'
+import type { Bindings } from '../types'
+import { inMemoryStore } from '../utils/inMemoryStore'
+
+// Create router with bindings
+const router = new Hono<{ Bindings: Bindings }>()
 
 /**
- * Type for leaderboard entry
+ * GET /api/leaderboard
+ * Get top creators leaderboard
  */
-interface LeaderboardEntry {
-  fid: number
-  username: string
-  overallScore: number
-  tier: number
-  percentileRank: number
-  followerCount: number
-  powerBadge: boolean
-}
-
-/**
- * Type for leaderboard types
- */
-type LeaderboardType = 'all' | 'weekly' | 'friends'
-
-// Create router
-const router = new Hono()
-
-// Type validation schema
-const leaderboardTypeSchema = z.enum(['all', 'weekly', 'friends'])
-
-/**
- * GET /api/leaderboard/:type
- * Get leaderboard by type
- */
-router.get('/:type', async (c) => {
+router.get('/', async (c) => {
   try {
-    const type = c.req.param('type')
-    const fidParam = c.req.query('fid')
-    const fid = fidParam ? parseInt(fidParam, 10) : undefined
+    const limit = parseInt(c.req.query('limit') || '10', 10)
+    const maxLimit = Math.min(limit, 100) // Cap at 100
 
-    // Validate type
-    const result = leaderboardTypeSchema.safeParse(type)
-    if (!result.success) {
-      return c.json(
-        {
-          success: false,
-          error:
-            'Invalid leaderboard type. Must be one of: all, weekly, friends',
-        },
-        400,
-      )
-    }
+    // Get today's date at midnight for filtering recent scores
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-    // If friends type is specified, FID is required
-    if (type === 'friends' && !fid) {
-      return c.json(
-        { success: false, error: 'FID required for friends leaderboard' },
-        400,
-      )
-    }
+    // Get top scores
+    const topScores = await inMemoryStore.getTopScores(maxLimit, today)
 
-    // Get fresh data directly (no caching for MVP)
-    const leaderboard = await getLeaderboard(type as LeaderboardType, fid)
+    // Enrich with creator data
+    const leaderboard = await Promise.all(
+      topScores.map(async (score) => {
+        const creator = await inMemoryStore.findCreator(score.creatorFid)
+        return {
+          rank: topScores.indexOf(score) + 1,
+          fid: score.creatorFid,
+          username: creator?.username || 'unknown',
+          followerCount: creator?.followerCount || 0,
+          powerBadge: creator?.powerBadge || false,
+          overallScore: score.overallScore,
+          tier: score.tier,
+          percentileRank: score.percentileRank,
+          components: score.components,
+          scoreDate: score.scoreDate,
+        }
+      }),
+    )
 
     return c.json({
       success: true,
-      data: leaderboard,
+      data: {
+        leaderboard,
+        total: leaderboard.length,
+        generatedAt: new Date().toISOString(),
+      },
     })
   } catch (error) {
-    console.error('Leaderboard error:', error)
+    console.error('Leaderboard fetch error:', error)
     return c.json({ success: false, error: 'Failed to fetch leaderboard' }, 500)
   }
 })
 
 /**
- * Get leaderboard data based on type
- * @param type Leaderboard type
- * @param fid Optional Farcaster ID for friends leaderboard
- * @returns Array of leaderboard entries
+ * GET /api/leaderboard/tier/:tier
+ * Get leaderboard for a specific tier
  */
-async function getLeaderboard(
-  type: LeaderboardType,
-  fid?: number,
-): Promise<LeaderboardEntry[]> {
-  // Get today's date at midnight
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+router.get('/tier/:tier', async (c) => {
+  try {
+    const tier = parseInt(c.req.param('tier'), 10)
+    const limit = parseInt(c.req.query('limit') || '10', 10)
+    const maxLimit = Math.min(limit, 100)
 
-  let query = {}
-  let limit = 100
-
-  switch (type) {
-    case 'weekly': {
-      // Get scores from the last 7 days
-      const oneWeekAgo = new Date(today)
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-
-      query = {
-        scoreDate: { $gte: oneWeekAgo },
-      }
-      break
+    if (tier < 1 || tier > 6) {
+      return c.json(
+        { success: false, error: 'Invalid tier (must be 1-6)' },
+        400,
+      )
     }
 
-    case 'friends': {
-      if (!fid) throw new Error('FID required for friends leaderboard')
+    // Get today's date at midnight
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-      // In a production environment with proper follow relationships,
-      // we would query a "follows" collection
+    // Get all recent scores and filter by tier
+    const allScores = await inMemoryStore.getTopScores(1000, today)
+    const tierScores = allScores
+      .filter((score) => score.tier === tier)
+      .slice(0, maxLimit)
 
-      // For now, we'll simulate by getting similar-scoring creators
-      const userScore = await CreatorScore.findOne({
-        creatorFid: fid,
-        scoreDate: { $gte: today },
-      })
+    // Enrich with creator data
+    const leaderboard = await Promise.all(
+      tierScores.map(async (score, index) => {
+        const creator = await inMemoryStore.findCreator(score.creatorFid)
+        return {
+          rank: index + 1,
+          fid: score.creatorFid,
+          username: creator?.username || 'unknown',
+          followerCount: creator?.followerCount || 0,
+          powerBadge: creator?.powerBadge || false,
+          overallScore: score.overallScore,
+          tier: score.tier,
+          percentileRank: score.percentileRank,
+          components: score.components,
+          scoreDate: score.scoreDate,
+        }
+      }),
+    )
 
-      if (!userScore) {
-        return []
-      }
-
-      query = {
-        creatorFid: { $ne: fid },
-        scoreDate: { $gte: today },
-        overallScore: {
-          $gte: Math.max(0, userScore.overallScore - 20),
-          $lte: Math.min(100, userScore.overallScore + 20),
-        },
-      }
-
-      limit = 50
-      break
+    const tierNames = {
+      1: 'Starter',
+      2: 'Bronze',
+      3: 'Silver',
+      4: 'Gold',
+      5: 'Platinum',
+      6: 'Diamond',
     }
 
-    default: {
-      // Get today's scores
-      query = {
-        scoreDate: { $gte: today },
-      }
-    }
+    return c.json({
+      success: true,
+      data: {
+        tier,
+        tierName: tierNames[tier as keyof typeof tierNames],
+        leaderboard,
+        total: leaderboard.length,
+        generatedAt: new Date().toISOString(),
+      },
+    })
+  } catch (error) {
+    console.error('Tier leaderboard fetch error:', error)
+    return c.json(
+      { success: false, error: 'Failed to fetch tier leaderboard' },
+      500,
+    )
   }
-
-  // Get scores from database
-  const scores = await CreatorScore.find(query)
-    .sort({ overallScore: -1 })
-    .limit(limit)
-
-  // Get creator info for these scores
-  const creatorFids = scores.map((score) => score.creatorFid)
-  const creators = await Creator.find({ fid: { $in: creatorFids } })
-
-  // Map creator info to scores
-  return scores.map((score) => {
-    const creator = creators.find((c) => c.fid === score.creatorFid)
-
-    const entry: LeaderboardEntry = {
-      fid: score.creatorFid,
-      username: creator?.username || `user_${score.creatorFid}`,
-      overallScore: score.overallScore,
-      tier: score.tier,
-      percentileRank: score.percentileRank,
-      followerCount: creator?.followerCount || 0,
-      powerBadge: creator?.powerBadge || false,
-    }
-
-    return entry
-  })
-}
+})
 
 export { router as leaderboardRoutes }

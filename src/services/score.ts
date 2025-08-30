@@ -1,25 +1,5 @@
-/**
- * Interface for score component values
- * Uses IScoreComponents from models/creatorScore.ts for consistency
- */
-import { CreatorScore, type IScoreComponents } from '../models/creatorScore'
-import type { CreatorMetrics } from './neynar'
-
-// Re-export for consistency across the codebase
-export type { IScoreComponents }
-
-/**
- * Interface for score calculation result
- */
-export interface ScoreResult {
-  fid: number
-  overallScore: number
-  percentileRank: number
-  tier: number
-  components: Record<string, number>
-  timestamp: Date
-  validUntil: Date
-}
+import type { CreatorMetrics, IScoreComponents, ScoreResult } from '../types'
+import { inMemoryStore } from '../utils/inMemoryStore'
 
 /**
  * Score Calculator Service
@@ -173,7 +153,7 @@ export class ScoreCalculator {
     today.setHours(0, 0, 0, 0)
 
     // Count total scores
-    const totalCount = await CreatorScore.countDocuments({
+    const totalCount = await inMemoryStore.countCreatorScores({
       scoreDate: { $gte: today },
     })
 
@@ -183,7 +163,7 @@ export class ScoreCalculator {
     }
 
     // Count scores below this one
-    const belowCount = await CreatorScore.countDocuments({
+    const belowCount = await inMemoryStore.countCreatorScores({
       scoreDate: { $gte: today },
       overallScore: { $lt: score },
     })

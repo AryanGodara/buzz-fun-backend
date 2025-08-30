@@ -1,100 +1,68 @@
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { Creator } from '../models/creator'
-import { Waitlist } from '../models/waitlist'
+import type { Bindings, IWaitlistEntry } from '../types'
+import { inMemoryStore } from '../utils/inMemoryStore'
 
-/**
- * Interface for waitlist entry response
- */
-interface WaitlistEntryResponse {
-  position: number
-  message: string
-}
+// Create router with bindings
+const router = new Hono<{ Bindings: Bindings }>()
 
-/**
- * Interface for waitlist status response
- */
-interface WaitlistStatusResponse {
-  onWaitlist: boolean
-  position?: number
-  joinedAt?: Date
-  percentile?: number
-  totalCount?: number
-}
-
-// Create router
-const router = new Hono()
-
-// Waitlist schema validation
-const waitlistSchema = z.object({
+// Input schema for waitlist signup
+const waitlistSignupSchema = z.object({
   fid: z.number().int().positive(),
-  email: z.string().email(),
+  username: z.string().min(1),
+  email: z.string().email().optional(),
+  requestedAmount: z.number().positive().max(100000),
 })
 
 /**
- * POST /api/waitlist
- * Join the loan waitlist
+ * POST /api/waitlist/signup
+ * Sign up for loan waitlist
  */
-router.post('/', zValidator('json', waitlistSchema), async (c) => {
+router.post('/signup', zValidator('json', waitlistSignupSchema), async (c) => {
   try {
-    const { fid, email } = c.req.valid('json')
+    const { fid, username, email, requestedAmount } = c.req.valid('json')
 
-    // Check if creator exists, create if not
-    const creator = await Creator.findOne({ fid })
-    if (!creator) {
-      // In a real implementation, we would fetch creator info from Neynar first
-      await Creator.create({
-        fid,
-        username: `user_${fid}`,
-        followerCount: 0,
-        followingCount: 0,
-        powerBadge: false,
-        neynarScore: 0,
-      })
-    }
-
-    // Check if already on waitlist
-    const existingEntry = await Waitlist.findOne({ fid })
+    // Check if user is already on waitlist
+    const existingEntry = await inMemoryStore.findWaitlistEntry(fid)
     if (existingEntry) {
-      const response: WaitlistEntryResponse = {
-        position: existingEntry.position,
-        message: 'You are already on the waitlist!',
-      }
-
-      return c.json({
-        success: true,
-        data: response,
-      })
+      return c.json(
+        {
+          success: false,
+          error: 'User already on waitlist',
+          data: existingEntry,
+        },
+        409,
+      )
     }
 
-    // Add to waitlist
-    const waitlist = new Waitlist({
+    // Create waitlist entry
+    const waitlistEntry: IWaitlistEntry = {
       fid,
+      username,
       email,
-      joinedAt: new Date(),
-    })
-
-    await waitlist.save()
-
-    const response: WaitlistEntryResponse = {
-      position: waitlist.position,
-      message: 'Successfully joined waitlist!',
+      requestedAmount,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     }
+
+    const savedEntry = await inMemoryStore.saveWaitlistEntry(waitlistEntry)
 
     return c.json({
       success: true,
-      data: response,
+      message: 'Successfully added to waitlist',
+      data: savedEntry,
     })
   } catch (error) {
-    console.error('Waitlist error:', error)
+    console.error('Waitlist signup error:', error)
     return c.json({ success: false, error: 'Failed to join waitlist' }, 500)
   }
 })
 
 /**
  * GET /api/waitlist/status/:fid
- * Check waitlist status for a creator
+ * Get waitlist status for a user
  */
 router.get('/status/:fid', async (c) => {
   try {
@@ -104,37 +72,71 @@ router.get('/status/:fid', async (c) => {
       return c.json({ success: false, error: 'Invalid FID' }, 400)
     }
 
-    const waitlistEntry = await Waitlist.findOne({ fid })
+    const waitlistEntry = await inMemoryStore.findWaitlistEntry(fid)
 
     if (!waitlistEntry) {
-      return c.json(
-        {
-          success: false,
-          error: 'Not on waitlist',
-          data: { onWaitlist: false },
-        },
-        404,
-      )
+      return c.json({ success: false, error: 'User not on waitlist' }, 404)
     }
 
-    // Get total count for percentage calculation
-    const totalCount = await Waitlist.countDocuments()
-    const percentile = Math.round((waitlistEntry.position / totalCount) * 100)
+    // Calculate position in waitlist (simple implementation)
+    const allEntries = await inMemoryStore.getAllWaitlistEntries()
+    const pendingEntries = allEntries
+      .filter((entry) => entry.status === 'pending')
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+
+    const position = pendingEntries.findIndex((entry) => entry.fid === fid) + 1
 
     return c.json({
       success: true,
       data: {
-        onWaitlist: true,
-        position: waitlistEntry.position,
-        joinedAt: waitlistEntry.joinedAt,
-        percentile,
-        totalCount,
+        ...waitlistEntry,
+        position: position > 0 ? position : null,
+        totalPending: pendingEntries.length,
       },
     })
   } catch (error) {
     console.error('Waitlist status error:', error)
     return c.json(
-      { success: false, error: 'Failed to check waitlist status' },
+      { success: false, error: 'Failed to get waitlist status' },
+      500,
+    )
+  }
+})
+
+/**
+ * GET /api/waitlist/stats
+ * Get waitlist statistics
+ */
+router.get('/stats', async (c) => {
+  try {
+    const allEntries = await inMemoryStore.getAllWaitlistEntries()
+
+    const stats = {
+      total: allEntries.length,
+      pending: allEntries.filter((entry) => entry.status === 'pending').length,
+      approved: allEntries.filter((entry) => entry.status === 'approved')
+        .length,
+      rejected: allEntries.filter((entry) => entry.status === 'rejected')
+        .length,
+      totalRequestedAmount: allEntries.reduce(
+        (sum, entry) => sum + entry.requestedAmount,
+        0,
+      ),
+      averageRequestedAmount:
+        allEntries.length > 0
+          ? allEntries.reduce((sum, entry) => sum + entry.requestedAmount, 0) /
+            allEntries.length
+          : 0,
+    }
+
+    return c.json({
+      success: true,
+      data: stats,
+    })
+  } catch (error) {
+    console.error('Waitlist stats error:', error)
+    return c.json(
+      { success: false, error: 'Failed to get waitlist stats' },
       500,
     )
   }

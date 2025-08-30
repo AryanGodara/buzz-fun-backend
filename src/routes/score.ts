@@ -1,13 +1,13 @@
 import { zValidator } from '@hono/zod-validator'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { Creator } from '../models/creator'
-import { CreatorScore, type ICreatorScore } from '../models/creatorScore'
 import { jobProcessor } from '../services/job'
 import { loanCalculator } from '../services/loan'
+import type { Bindings, ICreatorScore } from '../types'
+import { inMemoryStore } from '../utils/inMemoryStore'
 
-// Create router
-const router = new Hono()
+// Create router with bindings
+const router = new Hono<{ Bindings: Bindings }>()
 
 // Input schema for score calculation request
 const calculateScoreSchema = z.object({
@@ -24,6 +24,17 @@ router.post(
   async (c) => {
     try {
       const { fid } = c.req.valid('json')
+      const apiKey = c.env.NEYNAR_API_KEY
+
+      if (!apiKey) {
+        return c.json(
+          { success: false, error: 'NEYNAR_API_KEY not configured' },
+          500,
+        )
+      }
+
+      // Set API key for job processor
+      jobProcessor.setApiKey(apiKey)
 
       // Queue calculation job with priority 10
       const jobId = await jobProcessor.queueScoreCalculation(fid, 10)
@@ -34,7 +45,7 @@ router.post(
       const startTime = Date.now()
 
       // Wait for job to complete with timeout
-      const waitForCompletion = async (): Promise<ICreatorScore> => {
+      const waitForCompletion = async () => {
         // Get today's date at midnight
         const today = new Date()
         today.setHours(0, 0, 0, 0)
@@ -45,10 +56,10 @@ router.post(
         }
 
         // Check for job completion
-        const calculatedScore = await CreatorScore.findOne({
+        const calculatedScore = await inMemoryStore.findCreatorScore({
           creatorFid: fid,
           scoreDate: { $gte: today },
-        }).populate('creatorFid')
+        })
 
         if (calculatedScore) {
           return calculatedScore
@@ -111,8 +122,8 @@ router.get('/:fid', async (c) => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // Find score in database
-    const score = await CreatorScore.findOne({
+    // Find score in store
+    const score = await inMemoryStore.findCreatorScore({
       creatorFid: fid,
       scoreDate: { $gte: today },
     })
@@ -122,12 +133,12 @@ router.get('/:fid', async (c) => {
     }
 
     // Get creator info
-    const creator = await Creator.findOne({ fid })
+    const creator = await inMemoryStore.findCreator(fid)
 
     return c.json({
       success: true,
       data: {
-        ...score.toObject(),
+        ...score,
         username: creator?.username,
         followerCount: creator?.followerCount,
       },
@@ -147,14 +158,14 @@ router.get('/share/:id', async (c) => {
     const shareableId = c.req.param('id')
 
     // Find score by shareable ID
-    const score = await CreatorScore.findOne({ shareableId })
+    const score = await inMemoryStore.findCreatorScore({ shareableId })
 
     if (!score) {
       return c.json({ success: false, error: 'Score not found' }, 404)
     }
 
     // Get creator info
-    const creator = await Creator.findOne({ fid: score.creatorFid })
+    const creator = await inMemoryStore.findCreator(score.creatorFid)
 
     // Calculate loan terms
     const loanTerms = loanCalculator.calculateTerms(score)
@@ -163,7 +174,7 @@ router.get('/share/:id', async (c) => {
       success: true,
       data: {
         score: {
-          ...score.toObject(),
+          ...score,
           username: creator?.username,
           followerCount: creator?.followerCount,
         },
