@@ -46,30 +46,36 @@ The Buzz Fun Backend is a creator credit rating system for Farcaster creators th
 - `fid` (path): Farcaster ID (integer)
 
 **Response Format:**
+Returns comprehensive creator score with tier classification and user profile data.
+
+**Response:**
 ```json
 {
   "success": true,
   "data": {
-    "fid": 12,
-    "overallScore": 75.26,
+    "fid": 194,
+    "username": "rish",
+    "displayName": "rish", 
+    "pfpUrl": "https://i.imgur.com/naZWL9n.gif",
+    "overallScore": 76.45,
     "tier": "A",
     "tierInfo": {
       "tier": "A",
+      "description": "Very Good",
       "minScore": 70,
       "maxScore": 79,
-      "description": "Very Good",
       "percentile": "Top 15%"
     },
     "percentileRank": 85,
     "components": {
-      "engagement": 72.5,
-      "consistency": 88.2,
-      "growth": 65.8,
-      "quality": 79.1,
-      "network": 82.3
+      "engagement": 68.2,
+      "consistency": 82.1,
+      "growth": 91.3,
+      "quality": 74.8,
+      "network": 65.9
     },
-    "timestamp": "2025-08-31T10:30:00.000Z",
-    "validUntil": "2025-09-07T10:30:00.000Z"
+    "timestamp": "2025-08-30T22:38:51.359Z",
+    "validUntil": "2025-09-06T22:38:51.359Z"
   }
 }
 ```
@@ -88,9 +94,9 @@ The Buzz Fun Backend is a creator credit rating system for Farcaster creators th
 ### 2. Get Leaderboard
 **Endpoint:** `GET /api/leaderboard`
 
-**Description:** Get top 50 creators leaderboard (daily cached)
+**Description:** Get top 50 creators ranked by credit score with user profile data (cached daily)
 
-**Response Format:**
+**Response:**
 ```json
 {
   "success": true,
@@ -98,29 +104,32 @@ The Buzz Fun Backend is a creator credit rating system for Farcaster creators th
     "leaderboard": [
       {
         "rank": 1,
-        "fid": 10,
-        "overallScore": 100,
-        "tier": "AAA",
+        "fid": 194,
+        "username": "rish",
+        "displayName": "rish",
+        "pfpUrl": "https://i.imgur.com/naZWL9n.gif",
+        "overallScore": 76.45,
+        "tier": "A",
         "tierInfo": {
-          "tier": "AAA",
-          "minScore": 90,
-          "maxScore": 100,
-          "description": "Exceptional",
-          "percentile": "Top 1%"
+          "tier": "A",
+          "description": "Very Good",
+          "minScore": 70,
+          "maxScore": 79,
+          "percentile": "Top 15%"
         },
-        "percentileRank": 99,
+        "percentileRank": 85,
         "components": {
-          "engagement": 95.2,
-          "consistency": 98.7,
-          "growth": 92.1,
-          "quality": 97.8,
-          "network": 89.4
+          "engagement": 68.2,
+          "consistency": 82.1,
+          "growth": 91.3,
+          "quality": 74.8,
+          "network": 65.9
         },
-        "timestamp": "2025-08-31T10:30:00.000Z"
+        "timestamp": "2025-08-30T22:38:51.359Z"
       }
     ],
     "total": 50,
-    "generatedAt": "2025-08-31T10:30:00.000Z",
+    "generatedAt": "2025-08-31T00:00:00.000Z",
     "validUntil": "2025-09-01T00:00:00.000Z",
     "cacheDate": "2025-08-31"
   }
