@@ -4,6 +4,9 @@ import { getFromFirebase, saveToFirebase } from './firebase-admin'
 interface LeaderboardEntry {
   rank: number
   fid: number
+  username?: string
+  displayName?: string
+  pfpUrl?: string
   overallScore: number
   tier: string
   tierInfo: any
@@ -94,12 +97,15 @@ export async function generateAndCacheLeaderboard(
   const leaderboard: LeaderboardEntry[] = topScores.map((score, index) => ({
     rank: index + 1,
     fid: score.fid,
+    username: score.username,
+    displayName: score.displayName,
+    pfpUrl: score.pfpUrl,
     overallScore: score.overallScore,
     tier: score.tier,
     tierInfo: score.tierInfo,
     percentileRank: score.percentileRank,
     components: score.components,
-    timestamp: score.timestamp,
+    timestamp: score.timestamp
   }))
 
   const cachedLeaderboard: CachedLeaderboard = {

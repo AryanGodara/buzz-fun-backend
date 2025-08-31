@@ -89,6 +89,10 @@ router.get('/creator/:fid', async (c) => {
 
     const scoreData = {
       fid,
+      // Include user profile data from metrics
+      username: rawMetrics.profile.username,
+      displayName: rawMetrics.profile.displayName,
+      pfpUrl: rawMetrics.profile.pfpUrl,
       overallScore,
       tier,
       tierInfo,

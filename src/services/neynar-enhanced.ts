@@ -10,6 +10,9 @@ import type {
 export interface RawCreatorMetrics {
   profile: {
     fid: number
+    username: string
+    displayName: string
+    pfpUrl?: string
     followers: number
     following: number
     powerBadge: boolean
@@ -111,6 +114,9 @@ export class EnhancedNeynarService {
       return {
         profile: {
           fid: userProfile.fid,
+          username: userProfile.username,
+          displayName: userProfile.display_name || userProfile.username,
+          pfpUrl: userProfile.pfp_url,
           followers: userProfile.follower_count || 0,
           following: userProfile.following_count || 0,
           powerBadge: userProfile.power_badge || false,
