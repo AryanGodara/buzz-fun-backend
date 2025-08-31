@@ -14,18 +14,12 @@ app.use('*', prettyJSON())
 app.use(
   '*',
   cors({
-    origin: (origin, c) => {
-      const allowedOrigins = c.env.ALLOWED_ORIGINS?.split(',') || [
-        'http://localhost:3000',
-        'https://somurie.vercel.app',
-      ]
-      return allowedOrigins.includes(origin) ? origin : allowedOrigins[0]
-    },
+    origin: '*', // Allow all origins for development
     allowHeaders: ['Content-Type', 'Authorization'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     exposeHeaders: ['Content-Length'],
     maxAge: 86400,
-    credentials: true,
+    credentials: false, // Set to false when using wildcard origin
   }),
 )
 
