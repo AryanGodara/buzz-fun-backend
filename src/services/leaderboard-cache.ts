@@ -88,8 +88,9 @@ export async function generateAndCacheLeaderboard(
         score.overallScore !== null,
     )
 
-  // Sort by overall score (descending) and take top 50
+  // Filter out entries without profile data, then sort by overall score (descending) and take top 50
   const topScores = scoresArray
+    .filter(score => score.username || score.displayName) // Only include entries with profile data
     .sort((a, b) => b.overallScore - a.overallScore)
     .slice(0, 50)
 
