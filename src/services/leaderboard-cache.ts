@@ -90,9 +90,15 @@ export async function generateAndCacheLeaderboard(
 
   // Filter out entries without valid profile data, then sort by overall score (descending) and take top 50
   const topScores = scoresArray
-    .filter(score => {
-      const hasValidUsername = score.username && score.username !== 'undefined' && score.username.trim() !== ''
-      const hasValidDisplayName = score.displayName && score.displayName.trim() !== '' && score.displayName.trim() !== ' '
+    .filter((score) => {
+      const hasValidUsername =
+        score.username &&
+        score.username !== 'undefined' &&
+        score.username.trim() !== ''
+      const hasValidDisplayName =
+        score.displayName &&
+        score.displayName.trim() !== '' &&
+        score.displayName.trim() !== ' '
       return hasValidUsername || hasValidDisplayName
     })
     .sort((a, b) => b.overallScore - a.overallScore)
@@ -110,7 +116,7 @@ export async function generateAndCacheLeaderboard(
     tierInfo: score.tierInfo,
     percentileRank: score.percentileRank,
     components: score.components,
-    timestamp: score.timestamp
+    timestamp: score.timestamp,
   }))
 
   const cachedLeaderboard: CachedLeaderboard = {

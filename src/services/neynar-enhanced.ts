@@ -73,6 +73,31 @@ export class EnhancedNeynarService {
     this.apiKey = apiKey
   }
 
+  async fetchUserByUsername(username: string): Promise<NeynarUser | null> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/v2/farcaster/user/by_username?username=${encodeURIComponent(username)}`,
+        {
+          headers: {
+            accept: 'application/json',
+            api_key: this.apiKey,
+          },
+        },
+      )
+
+      if (!response.ok) {
+        console.error(`Neynar user by username API error: ${response.status}`)
+        return null
+      }
+
+      const data = (await response.json()) as { user: NeynarUser }
+      return data.user || null
+    } catch (error) {
+      console.error('Error fetching user by username:', error)
+      return null
+    }
+  }
+
   async fetchRawCreatorMetrics(fid: number): Promise<RawCreatorMetrics | null> {
     try {
       const [
