@@ -88,9 +88,13 @@ export async function generateAndCacheLeaderboard(
         score.overallScore !== null,
     )
 
-  // Filter out entries without profile data, then sort by overall score (descending) and take top 50
+  // Filter out entries without valid profile data, then sort by overall score (descending) and take top 50
   const topScores = scoresArray
-    .filter(score => score.username || score.displayName) // Only include entries with profile data
+    .filter(score => {
+      const hasValidUsername = score.username && score.username !== 'undefined' && score.username.trim() !== ''
+      const hasValidDisplayName = score.displayName && score.displayName.trim() !== '' && score.displayName.trim() !== ' '
+      return hasValidUsername || hasValidDisplayName
+    })
     .sort((a, b) => b.overallScore - a.overallScore)
     .slice(0, 50)
 
